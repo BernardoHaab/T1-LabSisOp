@@ -7,5 +7,4 @@
 /proc/bus/usb/devices - DISPOSITIVOS USB
 /proc/<PID>/comm - NOME E PID PROCESSO
 /proc/partitions - PARTIÇÕES
-
-FALTA ADAPTADORES DE REDE E IPS
+/proc/net/route - TEBELA DE ROTEAMENTO
