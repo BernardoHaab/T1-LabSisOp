@@ -1,0 +1,11 @@
+/proc/driver/rtc - HORARIO
+/proc/uptime - TEMPO DE FUNCIONAMENTO
+/proc/cpuinfo - INFO CPU
+/proc/stat - USO DA CPU
+/proc/meminfo - QUANTIDADE DE MEMÓRIA (total e ocupada em MB)
+/etc/os-release - VERSÃO DO SISTEMA
+/proc/bus/usb/devices - DISPOSITIVOS USB
+/proc/<PID>/comm - NOME E PID PROCESSO
+/proc/partitions - PARTIÇÕES
+
+FALTA ADAPTADORES DE REDE E IPS
