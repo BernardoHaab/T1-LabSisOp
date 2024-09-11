@@ -9,16 +9,40 @@
 #include <netinet/in.h>
 #include <unistd.h> // Include the <unistd.h> header for close
 
+#include <ctime>
+#include <fstream>
+
 void sendResponse(int clientSocket, const std::string &response)
 {
-  std::string httpResponse = "HTTP / 1.1 200 OK\r\n";
-  httpResponse += "Content - Type : text/html\r\n";
+  std::string httpResponse = "HTTP/1.1 200 OK\r\n";
+  httpResponse += "Content - Type:text/html\r\n";
   httpResponse += "Content - Length : " + std::to_string(response.length()) + "\r\n";
   httpResponse += "\r\n";
+  httpResponse += "<html><head><title>T1 Lab SisOp</title></head><body>";
   httpResponse += response;
+  httpResponse += "</body></html>";
 
   send(clientSocket, httpResponse.c_str(), httpResponse.length(), 0);
   close(clientSocket);
+}
+
+std::string getCurrentTime()
+{
+  std::ifstream rtcFile("/proc/driver/rtc");
+  std::string line;
+
+  while (std::getline(rtcFile, line))
+  {
+    if (line.find("rtc_time") != std::string::npos)
+    {
+      std::string timeStr = line.substr(line.find(":") + 2);
+      rtcFile.close();
+      return timeStr;
+    }
+  }
+
+  rtcFile.close();
+  return "";
 }
 
 int main()
@@ -61,8 +85,9 @@ int main()
 
       // Process the request
       std::string request(buffer);
-      std::string response = "<html><head><title> Simple Web Server</ title></ head>";
-      response += "<body><h1> Welcome to the Simple Web Server !</ h1></ body></ html>";
+      std::string response = "\n<h1> Welcome to the Simple Web Server !</ h1>";
+
+      response += "\n<h3>Tempo do sistema:" + getCurrentTime() + " </h3>";
 
       sendResponse(clientSocket, response);
     }
