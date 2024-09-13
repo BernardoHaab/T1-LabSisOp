@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -12,6 +13,7 @@
 #include <ctime>
 #include <fstream>
 #include <dirent.h> // Include the <dirent.h> header for DIR, opendir, readdir, and closedir
+#include <vector>
 
 void sendResponse(int clientSocket, const std::string &response)
 {
@@ -65,6 +67,42 @@ std::string getUptime()
   uptimeFile.close();
   return "\n<h3>Tempo de funcionamento: " + uptime + "s </h3>";
 }
+
+std::string getStat()
+{
+    std::ifstream statFile("/proc/stat");
+    if (!statFile.is_open())
+    {
+        throw std::runtime_error("Unable to open /proc/stat");
+    }
+
+    std::string line;
+    std::string cpuStat;
+    if (std::getline(statFile, line))
+    {
+        std::string cpuLine = line.substr(line.find("cpu") + 4); 
+        std::istringstream ss(cpuLine);
+        std::vector<std::string> tokens;
+        std::string token;
+        while (ss >> token)
+        {
+            tokens.push_back(token);
+        }
+
+        long user = std::stol(tokens[0]);
+        long nice = std::stol(tokens[1]);
+        long system = std::stol(tokens[2]);
+        long idle = std::stol(tokens[3]);
+        long total = user + nice + system + idle;
+
+        cpuStat = std::to_string((total - idle) * 100 / total);
+    }
+
+    statFile.close();
+    return "\n<h3>Uso da CPU: " + cpuStat + "% </h3>";
+}
+
+
 
 std::string getMemoryUsage()
 {
@@ -136,6 +174,26 @@ std::string getSystemInfo()
   return "<p><h3>Sistema Operacional: " + systemName + " </h3>";
 }
 
+/*std::string getUSB()
+{
+    std::ifstream usbFile("/proc/bus/usb/devices");
+    if (!usbFile.is_open())
+    {
+        throw std::runtime_error("Unable to open /proc/bus/usb/devices");
+    }
+
+    std::string line;
+    std::string usbDevices;
+    while (std::getline(usbFile, line))
+    {
+        usbDevices += line + "<br/>";
+    }
+
+    usbFile.close();
+    return "<h3>Dispositivos USB conectados:</h3>" + usbDevices;
+}*/
+
+
 std::string getRunningProcesses()
 {
   std::string processInfo = "<h3>Processos em execução:</h3>";
@@ -186,6 +244,38 @@ std::string getRunningProcesses()
   return processInfo;
 }
 
+std::string getAdptadores()
+{
+    std::ifstream routeFile("/proc/net/route");
+    if (!routeFile.is_open())
+    {
+        throw std::runtime_error("Unable to open /proc/net/route");
+    }
+
+    std::string line;
+    std::string adapters;
+    while (std::getline(routeFile, line))
+    {
+        std::istringstream iss(line);
+        std::string iface;
+        std::string dest;
+        std::string gateway;
+        std::string flags;
+
+        iss >> iface >> dest >> gateway >> flags;
+
+        if (!iface.empty())
+        {
+            adapters += "<p><strong>Interface:</strong> " + iface + "</p>";
+        }
+    }
+
+    routeFile.close();
+    return "<h3>Adaptadores de rede:</h3>" + adapters;
+}
+
+
+
 int main()
 {
   int serverSocket, clientSocket;
@@ -231,9 +321,12 @@ int main()
       response += getCurrentTime();
       response += getUptime();
       response += getCpuInfo();
+      response += getStat();
       response += getMemoryUsage();
       response += getSystemInfo();
+      //response += getUSB();
       response += getRunningProcesses();
+      response += getAdptadores();
 
       sendResponse(clientSocket, response);
     }
