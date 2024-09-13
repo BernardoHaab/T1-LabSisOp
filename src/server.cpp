@@ -15,6 +15,9 @@
 #include <dirent.h> // Include the <dirent.h> header for DIR, opendir, readdir, and closedir
 #include <vector>
 
+#include <sys/statvfs.h>
+#include <arpa/inet.h>
+
 void sendResponse(int clientSocket, const std::string &response)
 {
   std::string httpResponse = "HTTP/1.1 200 OK\r\n";
@@ -70,39 +73,39 @@ std::string getUptime()
 
 std::string getStat()
 {
-    std::ifstream statFile("/proc/stat");
-    if (!statFile.is_open())
+  std::ifstream statFile("/proc/stat");
+  if (!statFile.is_open())
+  {
+    throw std::runtime_error("Unable to open /proc/stat");
+  }
+
+  std::string line;
+  std::string cpuStat;
+  if (std::getline(statFile, line))
+  {
+    std::string cpuLine = line.substr(line.find("cpu") + 4);
+    std::istringstream ss(cpuLine);
+    std::vector<std::string> tokens;
+    std::string token;
+    while (ss >> token)
     {
-        throw std::runtime_error("Unable to open /proc/stat");
+      tokens.push_back(token);
     }
 
-    std::string line;
-    std::string cpuStat;
-    if (std::getline(statFile, line))
-    {
-        std::string cpuLine = line.substr(line.find("cpu") + 4); 
-        std::istringstream ss(cpuLine);
-        std::vector<std::string> tokens;
-        std::string token;
-        while (ss >> token)
-        {
-            tokens.push_back(token);
-        }
+    long user = std::stol(tokens[0]);
+    long nice = std::stol(tokens[1]);
+    long system = std::stol(tokens[2]);
+    long idle = std::stol(tokens[3]);
+    long total = user + nice + system + idle;
 
-        long user = std::stol(tokens[0]);
-        long nice = std::stol(tokens[1]);
-        long system = std::stol(tokens[2]);
-        long idle = std::stol(tokens[3]);
-        long total = user + nice + system + idle;
+    cpuStat = std::to_string((total - idle) * 100 / total);
+    // statFile.close();
+    // return "\n<h3>Uso da CPU: " + cpuStat + "% </h3>" + std::to_string(user) + " " + std::to_string(nice) + " " + std::to_string(system) + " " + std::to_string(idle) + " " + std::to_string(total);
+  }
 
-        cpuStat = std::to_string((total - idle) * 100 / total);
-    }
-
-    statFile.close();
-    return "\n<h3>Uso da CPU: " + cpuStat + "% </h3>";
+  statFile.close();
+  return "\n<h3>Uso da CPU: " + cpuStat + "% </h3>";
 }
-
-
 
 std::string getMemoryUsage()
 {
@@ -126,8 +129,8 @@ std::string getMemoryUsage()
   meminfoFile.close();
 
   // Convert memory usage to MB
-  return "<h3>Memoria total: " + std::to_string(memoryTotal / 1024) + "</h3>" +
-         "<h3>Memoria usada:" + std::to_string(memoryUsage / 1024) + "</h3>";
+  return "<h3>Memoria total: " + std::to_string(memoryTotal / 1024) + " (MB) </h3>" +
+         "<h3>Memoria usada:" + std::to_string(memoryUsage / 1024) + " (MB) </h3>";
   // int memoryUsageMB = std::stoi(memoryUsage) / 1024;
   // return "<p><h3>Memory Usage: </h3>" + std::to_string(memoryUsageMB) + " MB</p>";
 }
@@ -174,25 +177,101 @@ std::string getSystemInfo()
   return "<p><h3>Sistema Operacional: " + systemName + " </h3>";
 }
 
-/*std::string getUSB()
+// std::string getDiskPartitionsMounts()
+// {
+//   std::ifstream mountsFile("/proc/mounts");
+//   if (!mountsFile.is_open())
+//   {
+//     throw std::runtime_error("Unable to open /proc/mounts");
+//   }
+
+//   std::string line;
+//   std::string partitionsInfo = "<h3>Partições de Disco:</h3><ul>";
+
+//   while (std::getline(mountsFile, line))
+//   {
+//     std::istringstream iss(line);
+//     std::string device, mountPoint, filesystemType;
+//     long totalSize = 0; // Placeholder for total size
+
+//     iss >> device >> mountPoint >> filesystemType;
+
+//     // Get the total size of the partition
+//     struct statvfs stat;
+//     if (statvfs(mountPoint.c_str(), &stat) == 0)
+//     {
+//       totalSize = stat.f_frsize * stat.f_blocks; // Total size in bytes
+//     }
+
+//     partitionsInfo += "<li><strong>Dispositivo:</strong> " + device +
+//                       ", <strong>Ponto de Montagem:</strong> " + mountPoint +
+//                       ", <strong>Tamanho Total:</strong> " + std::to_string(totalSize / (1024 * 1024)) + " MB</li>";
+//   }
+
+//   mountsFile.close();
+//   partitionsInfo += "</ul>";
+//   return partitionsInfo;
+// }
+
+std::string getUSBDevices()
 {
-    std::ifstream usbFile("/proc/bus/usb/devices");
-    if (!usbFile.is_open())
+  std::ifstream usbFile("/proc/bus/input/devices");
+  if (!usbFile.is_open())
+  {
+    throw std::runtime_error("Unable to open /proc/bus/input/devices");
+  }
+
+  std::string line;
+  std::string usbDevices;
+  while (std::getline(usbFile, line))
+  {
+    if (line.find("Name") != std::string::npos)
     {
-        throw std::runtime_error("Unable to open /proc/bus/usb/devices");
+      std::string name = line.substr(line.find("=") + 2);
+      usbDevices += "Dispositivo: " + name.substr(0, name.length() - 2) + "<br/>";
     }
-
-    std::string line;
-    std::string usbDevices;
-    while (std::getline(usbFile, line))
+    if (line.find("Phys") != std::string::npos)
     {
-        usbDevices += line + "<br/>";
+      std::string port = line.substr(line.find("=") + 1);
+      usbDevices += "Porta" + port + "<br/>";
     }
+  }
 
-    usbFile.close();
-    return "<h3>Dispositivos USB conectados:</h3>" + usbDevices;
-}*/
+  usbFile.close();
+  return "<h3>Dispositivos USB conectados:</h3>" + usbDevices;
+}
 
+std::string getDiskPartitions()
+{
+  std::ifstream partitionsFile("/proc/partitions");
+  if (!partitionsFile.is_open())
+  {
+    throw std::runtime_error("Unable to open /proc/partitions");
+  }
+
+  std::string line;
+  std::string partitionsInfo = "<h3>Unidades de disco:</h3><ul>";
+
+  // Skip the first two lines (header)
+  std::getline(partitionsFile, line);
+  std::getline(partitionsFile, line);
+
+  while (std::getline(partitionsFile, line))
+  {
+    std::istringstream iss(line);
+    std::string major, minor, blocks, name;
+    iss >> major >> minor >> blocks >> name;
+
+    long totalSize = std::stol(blocks) * 1024; // Convert blocks to bytes
+
+    partitionsInfo += "<li><strong>Disco:</strong> " + name +
+                      ", <strong>Capacidade:</strong> " + std::to_string(totalSize / (1024 * 1024)) + " MB</li>";
+  }
+
+  partitionsFile.close();
+  partitionsInfo += "</ul>";
+  return partitionsInfo;
+}
 
 std::string getRunningProcesses()
 {
@@ -246,35 +325,42 @@ std::string getRunningProcesses()
 
 std::string getAdptadores()
 {
-    std::ifstream routeFile("/proc/net/route");
-    if (!routeFile.is_open())
+  std::ifstream routeFile("/proc/net/route");
+  if (!routeFile.is_open())
+  {
+    throw std::runtime_error("Unable to open /proc/net/route");
+  }
+
+  std::string line;
+  std::string adapters;
+  std::getline(routeFile, line); // Skip the first line
+  while (std::getline(routeFile, line))
+  {
+    std::istringstream iss(line);
+    std::string iface;
+    std::string dest;
+    std::string gateway;
+    std::string flags;
+
+    iss >> iface >> dest >> gateway >> flags;
+
+    if (!iface.empty())
     {
-        throw std::runtime_error("Unable to open /proc/net/route");
+      unsigned int ipAddr;
+      std::stringstream ss;
+      ss << std::hex << dest;
+      ss >> ipAddr;
+
+      struct in_addr ipStruct;
+      ipStruct.s_addr = htonl(ipAddr);
+      std::string ipString = inet_ntoa(ipStruct);
+      adapters += "<p><strong>Interface:</strong> " + iface + " - IP:" + ipString + "</p>";
     }
+  }
 
-    std::string line;
-    std::string adapters;
-    while (std::getline(routeFile, line))
-    {
-        std::istringstream iss(line);
-        std::string iface;
-        std::string dest;
-        std::string gateway;
-        std::string flags;
-
-        iss >> iface >> dest >> gateway >> flags;
-
-        if (!iface.empty())
-        {
-            adapters += "<p><strong>Interface:</strong> " + iface + "</p>";
-        }
-    }
-
-    routeFile.close();
-    return "<h3>Adaptadores de rede:</h3>" + adapters;
+  routeFile.close();
+  return "<h3>Adaptadores de rede:</h3>" + adapters;
 }
-
-
 
 int main()
 {
@@ -324,9 +410,11 @@ int main()
       response += getStat();
       response += getMemoryUsage();
       response += getSystemInfo();
-      //response += getUSB();
+      response += getUSBDevices();
       response += getRunningProcesses();
       response += getAdptadores();
+
+      response += getDiskPartitions();
 
       sendResponse(clientSocket, response);
     }

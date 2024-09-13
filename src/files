@@ -4,7 +4,7 @@
 /proc/stat - USO DA CPU
 /proc/meminfo - QUANTIDADE DE MEMÓRIA (total e ocupada em MB) .
 /etc/os-release - VERSÃO DO SISTEMA .
-/proc/bus/usb/devices - DISPOSITIVOS USB
+/proc/bus/usb/devices - DISPOSITIVOS USB .
 /proc/<PID>/comm - NOME E PID PROCESSO .
-/proc/partitions - PARTIÇÕES
-/proc/net/route - TEBELA DE ROTEAMENTO
+/proc/partitions - PARTIÇÕES .
+/
