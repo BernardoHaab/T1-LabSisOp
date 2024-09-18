@@ -353,7 +353,7 @@ std::string getAdptadores()
 
       struct in_addr ipStruct;
       ipStruct.s_addr = htonl(ipAddr);
-      std::string ipString = inet_ntoa(ipStruct);
+      std::string ipString = std::to_string(ipStruct.s_addr >> 24 & 0xFF) + "." + std::to_string((ipStruct.s_addr >> 16) & 0xFF) + "." + std::to_string((ipStruct.s_addr >> 8) & 0xFF) + "." + std::to_string((ipStruct.s_addr) & 0xFF);
       adapters += "<p><strong>Interface:</strong> " + iface + " - IP:" + ipString + "</p>";
     }
   }
